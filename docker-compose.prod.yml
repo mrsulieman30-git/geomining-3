@@ -1,0 +1,100 @@
+services:
+  app:
+    build:
+      context: ./docker/app
+    volumes:
+      - .:/var/www/html
+    networks:
+      - aurum
+
+  web:
+    build:
+      context: ./docker/web
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - .:/var/www/html
+    networks:
+      - aurum
+    depends_on:
+      - app
+
+  queue:
+    build:
+      context: ./docker/app
+    command: php artisan horizon
+    volumes:
+      - .:/var/www/html
+    networks:
+      - aurum
+    depends_on:
+      - redis
+      - mysql
+
+  scheduler:
+    build:
+      context: ./docker/app
+    command: php artisan schedule:work
+    volumes:
+      - .:/var/www/html
+    networks:
+      - aurum
+    depends_on:
+      - redis
+      - mysql
+
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: '${DB_PASSWORD}'
+      MYSQL_DATABASE: '${DB_DATABASE}'
+      MYSQL_USER: '${DB_USERNAME}'
+      MYSQL_PASSWORD: '${DB_PASSWORD}'
+    volumes:
+      - 'aurum-mysql:/var/lib/mysql'
+    networks:
+      - aurum
+
+  redis:
+    image: redis:7
+    volumes:
+      - 'aurum-redis:/data'
+    networks:
+      - aurum
+
+  meilisearch:
+    image: getmeili/meilisearch:v1.17
+    environment:
+      MEILI_MASTER_KEY: '${MEILISEARCH_KEY}'
+      MEILI_NO_ANALYTICS: 'true'
+    volumes:
+      - 'aurum-meilisearch:/meili_data'
+    networks:
+      - aurum
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    volumes:
+      - 'aurum-qdrant:/qdrant/storage'
+    networks:
+      - aurum
+
+  clamav:
+    image: clamav/clamav:latest
+    networks:
+      - aurum
+
+networks:
+  aurum:
+    driver: bridge
+
+volumes:
+  aurum-mysql:
+    driver: local
+  aurum-redis:
+    driver: local
+  aurum-meilisearch:
+    driver: local
+  aurum-qdrant:
+    driver: local

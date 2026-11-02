@@ -1,0 +1,79 @@
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: '${DB_PASSWORD}'
+      MYSQL_ROOT_HOST: '%'
+      MYSQL_DATABASE: '${DB_DATABASE}'
+      MYSQL_USER: '${DB_USERNAME}'
+      MYSQL_PASSWORD: '${DB_PASSWORD}'
+      MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
+    ports:
+      - '${FORWARD_DB_PORT:-3306}:3306'
+    volumes:
+      - 'aurum-mysql:/var/lib/mysql'
+    networks:
+      - aurum
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-p${DB_PASSWORD}"]
+      retries: 3
+      timeout: 5s
+
+  redis:
+    image: redis:7
+    ports:
+      - '${FORWARD_REDIS_PORT:-6379}:6379'
+    volumes:
+      - 'aurum-redis:/data'
+    networks:
+      - aurum
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      retries: 3
+      timeout: 5s
+
+  meilisearch:
+    image: getmeili/meilisearch:v1.17
+    environment:
+      MEILI_MASTER_KEY: '${MEILISEARCH_KEY}'
+      MEILI_NO_ANALYTICS: 'true'
+    ports:
+      - '${FORWARD_MEILISEARCH_PORT:-7700}:7700'
+    volumes:
+      - 'aurum-meilisearch:/meili_data'
+    networks:
+      - aurum
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--spider",  "http://localhost:7700/health"]
+      retries: 3
+      timeout: 5s
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - '${FORWARD_QDRANT_PORT:-6333}:6333'
+    volumes:
+      - 'aurum-qdrant:/qdrant/storage'
+    networks:
+      - aurum
+
+  clamav:
+    image: clamav/clamav:latest
+    ports:
+      - '${FORWARD_CLAMAV_PORT:-3310}:3310'
+    networks:
+      - aurum
+
+networks:
+  aurum:
+    driver: bridge
+
+volumes:
+  aurum-mysql:
+    driver: local
+  aurum-redis:
+    driver: local
+  aurum-meilisearch:
+    driver: local
+  aurum-qdrant:
+    driver: local
